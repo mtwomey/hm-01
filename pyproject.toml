@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "mongo-haystack"
+version = "0.1.0"
+description = ""
+authors = ["mtwomey <mtwomey@beakstar.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
