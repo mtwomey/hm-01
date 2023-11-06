@@ -191,11 +191,25 @@ class MongoDocumentStore(BaseDocumentStore):
     ) -> int:
         """
         [Demanded by base class]
+        [Done]
 
         Return the number of documents.
+
+        :param filters: Optional filters (see get_all_documents).
+        :param index: Collection to use.
+        :param only_documents_without_embedding: If set to `True`, only documents without embeddings are counted.
+        :param headers: MongoDocumentStore does not support headers.
         """
+        if headers:
+            raise NotImplementedError("MongoDocumentStore does not support headers.")
+
         collection = self._get_collection(index)
-        mongo_filter = mongo_filter_converter(filters)
+
+        if only_documents_without_embedding:
+            mongo_filter = {"$and": [mongo_filter_converter(filters), {"embedding": {"$eq": None}}]}
+        else:
+            mongo_filter = mongo_filter_converter(filters)
+
         return collection.count_documents(mongo_filter)
 
     def get_embedding_count(self, filters: Optional[FilterType] = None, index: Optional[str] = None) -> int:
