@@ -157,7 +157,7 @@ class MongoDocumentStore(BaseDocumentStore):
         self,
         index: Optional[str] = None,
         filters: Optional[FilterType] = None,
-        return_embedding: Optional[bool] = None,
+        return_embedding: Optional[bool] = False,
         batch_size: int = DEFAULT_BATCH_SIZE,
         headers: Optional[Dict[str, str]] = None,
     ):
@@ -210,7 +210,7 @@ class MongoDocumentStore(BaseDocumentStore):
         self,
         index: Optional[FilterType] = None,
         filters: Optional[FilterType] = None,
-        return_embedding: Optional[bool] = None,
+        return_embedding: Optional[bool] = False,
         batch_size: int = DEFAULT_BATCH_SIZE,
         headers: Optional[Dict[str, str]] = None,
     ) -> Generator[Document, None, None]:
@@ -297,7 +297,7 @@ class MongoDocumentStore(BaseDocumentStore):
             [
                 {
                     "$search": {
-                        "index": "embedding",
+                        "index": self.collection_name,
                         "knnBeta": {
                             "vector": query_emb.tolist(),
                             "path": "embedding",
