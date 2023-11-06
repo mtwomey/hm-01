@@ -232,13 +232,12 @@ class MongoDocumentStore(BaseDocumentStore):
         [BaseDocumentStore]
         [Demanded by base class]
         """
+        if headers:
+            raise NotImplementedError("MongoDocumentStore does not support headers.")
 
         mongo_filters = mongo_filter_converter(filters)
 
         projection = {}
-
-        if headers:
-            raise NotImplementedError("MongoDocumentStore does not support headers.")
 
         if return_embedding is None:
             return_embedding = self.return_embedding
