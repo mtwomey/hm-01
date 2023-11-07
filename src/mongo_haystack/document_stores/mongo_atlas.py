@@ -63,6 +63,14 @@ class MongoDocumentStore(BaseDocumentStore):
         self.embedding_dim = embedding_dim
         self.index = collection_name
         self.return_embedding = return_embedding
+        self.recreate_index = recreate_index
+
+        if self.recreate_index:
+            self.delete_index()
+
+        # Implicitly create the collection if it doesn't exist
+        if collection_name not in self.database.list_collection_names():
+            self.database.create_collection(collection_name)
 
     def _create_document_field_map(self) -> Dict:
         """
@@ -71,7 +79,7 @@ class MongoDocumentStore(BaseDocumentStore):
         """
         return {self.embedding_field: "embedding"}
 
-    def _get_collection(self, index) -> Collection:
+    def _get_collection(self, index=None) -> Collection:
         _validate_index_name(index)
         if index is not None:
             return self.database[index]
@@ -141,11 +149,11 @@ class MongoDocumentStore(BaseDocumentStore):
 
         collection.delete_many(filter=mongo_filters)
 
-    def delete_index():
+    def delete_index(self, index=None):
         """
         [Demanded by base class]
         """
-        pass
+        self._get_collection(index).drop()
 
     def delete_labels():
         """
