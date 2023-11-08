@@ -126,6 +126,21 @@ def test_get_all_documents_filtered():
     assert document_store.get_document_count(filters={"Chapter": 1, "_split_id": 0}) == 1
 
 
+def test__create_document_field_map_a():
+    assert document_store._create_document_field_map() == {"embedding": "embedding"}
+
+
+def test__create_document_field_map_b():
+    document_store = MongoDocumentStore(
+        mongo_connection_string=mongo_atlas_connection_string,
+        database_name=mongo_atlas_database,
+        collection_name=mongo_atlas_collection,
+        embedding_dim=768,
+        embedding_field="emb",
+    )
+    assert document_store._create_document_field_map() == {"emb": "embedding"}
+
+
 # Get the book "Around the World in 80 Days" from Project Gutenberg
 def get_book():
     response = requests.get("https://www.gutenberg.org/ebooks/103.txt.utf-8")
