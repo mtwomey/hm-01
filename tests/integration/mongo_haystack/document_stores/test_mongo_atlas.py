@@ -40,13 +40,8 @@ document_store = MongoDocumentStore(
 )
 
 
-def test_delete_documents():
-    document_store.delete_documents()
-    assert document_store.get_document_count() == 0
-
-
 def test_write_documents():
-    test_delete_documents()
+    document_store.delete_documents()
 
     book = get_book()
     chapters = divide_book_into_chapters(book)
@@ -126,6 +121,30 @@ def test_get_all_documents_filtered():
     assert document_store.get_document_count(filters={"Chapter": 1, "_split_id": 0}) == 1
 
 
+def test_delete_documents_filtered():
+    document_store.delete_documents(filters={"Chapter": 1, "_split_id": 0})
+    assert document_store.get_document_count() == 372
+
+
+def test_delete_documents_by_id():
+    documents = document_store.get_all_documents(filters={"Chapter": 1})
+    document_ids = [document.id for document in documents]
+    document_store.delete_documents(ids=document_ids)
+    assert document_store.get_document_count() == 365
+
+
+def test_delete_documents_by_id_filtered():
+    documents = document_store.get_all_documents(filters={"Chapter": 2})
+    document_ids = [document.id for document in documents]
+    document_store.delete_documents(ids=document_ids, filters={"_split_id": 0})
+    assert document_store.get_document_count() == 364
+
+
+def test_delete_documents():
+    document_store.delete_documents()
+    assert document_store.get_document_count() == 0
+
+
 def test__create_document_field_map_a():
     assert document_store._create_document_field_map() == {"embedding": "embedding"}
 
@@ -145,13 +164,16 @@ def test__get_collection_no_index():
     collection = document_store._get_collection()
     assert collection.name == "test_80_days"
 
+
 def test__get_collection_with_index():
     collection = document_store._get_collection(index="index_abcdefg")
     assert collection.name == "index_abcdefg"
 
+
 def test__get_collection_invalid_index():
     with pytest.raises(ValueError):
-      collection = document_store._get_collection(index="index_a!!bcdefg")
+        collection = document_store._get_collection(index="index_a!!bcdefg")
+
 
 # Get the book "Around the World in 80 Days" from Project Gutenberg
 def get_book():
