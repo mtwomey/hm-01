@@ -99,38 +99,14 @@ class MongoDocumentStore(BaseDocumentStore):
         headers: Optional[Dict[str, str]] = None,
     ):
         """
-        [Demanded by base class]
         [Done]
+        [Demanded by base class]
 
         Delete documents from the document store.
 
         :param index: Collection to delete the documents from. If `None`, the DocumentStore's default collection will be used.
         :param ids: Optional list of IDs to narrow down the documents to be deleted.
-        :param filters: Optional filters to narrow down the documents to be deleted.
-            Filters are defined as nested dictionaries. The keys of the dictionaries can be a logical
-            operator (`"$and"`, `"$or"`, `"$not"`), a comparison operator (`"$eq"`, `"$in"`, `"$gt"`,
-            `"$gte"`, `"$lt"`, `"$lte"`) or a metadata field name.
-            Logical operator keys take a dictionary of metadata field names and/or logical operators as
-            value. Metadata field names take a dictionary of comparison operators as value. Comparison
-            operator keys take a single value or (in case of `"$in"`) a list of values as value.
-            If no logical operator is provided, `"$and"` is used as default operation. If no comparison
-            operator is provided, `"$eq"` (or `"$in"` if the comparison value is a list) is used as default
-            operation.
-                __Example__:
-
-                ```python
-                filters = {
-                    "$and": {
-                        "type": {"$eq": "article"},
-                        "date": {"$gte": "2015-01-01", "$lt": "2021-01-01"},
-                        "rating": {"$gte": 3},
-                        "$or": {
-                            "genre": {"$in": ["economy", "politics"]},
-                            "publisher": {"$eq": "nytimes"}
-                        }
-                    }
-                }
-                ```
+        :param filters: optional filters (see get_all_documents for description).
             If filters are provided along with a list of IDs, this method deletes the
             intersection of the two query results (documents that match the filters and
             have their ID in the list).
