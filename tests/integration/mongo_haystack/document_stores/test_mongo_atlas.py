@@ -118,7 +118,21 @@ def test_get_all_documents_with_embedings():
 
 
 def test_get_all_documents():
-    assert document_store.get_document_count() == 373
+    assert len(document_store.get_all_documents()) == 373
+
+
+def test_get_document_by_id():
+    documents = document_store.get_all_documents(filters={"Chapter": 1, "_split_id": 0})
+    assert len(documents) == 1
+    document_id = documents[0].id
+    assert isinstance(document_store.get_document_by_id(id=document_id), Document)
+
+
+def test_get_documents_by_id():
+    documents = document_store.get_all_documents(filters={"Chapter": 1})
+    document_ids = [document.id for document in documents]
+    assert len(document_ids) > 1
+    assert len(document_store.get_documents_by_id(ids=document_ids)) == len(document_ids)
 
 
 def test_get_document_count_without_embeddings_b():
@@ -128,6 +142,11 @@ def test_get_document_count_without_embeddings_b():
 def test_get_all_documents_filtered():
     assert document_store.get_document_count(filters={"Chapter": 1}) == 8
     assert document_store.get_document_count(filters={"Chapter": 1, "_split_id": 0}) == 1
+
+
+def test_get_all_documents_headers_throws():
+    with pytest.raises(NotImplementedError):
+        document_store.get_all_documents(headers={"key": "value"})
 
 
 # This test will not work until we can create the search index prgramatically
@@ -140,6 +159,9 @@ def test_get_all_documents_filtered():
 #     )
 #     embedding = retriever.embed_queries(["How much money was stolen from the bank?"])[0]
 #     assert len(document_store.query_by_embedding(query_emb=embedding)) == 10
+
+
+# Deleting documents
 
 
 def test_delete_documents_filtered():
@@ -157,7 +179,7 @@ def test_delete_documents_by_id():
 def test_delete_documents_by_id_filtered():
     documents = document_store.get_all_documents(filters={"Chapter": 2})
     document_ids = [document.id for document in documents]
-    document_store.delete_documents(ids=document_ids, filters={"_split_id": 0})
+    document_store.delete_documents(ids=document_ids, filters={"_split_id": 0})  # Only deletes the intersection
     assert document_store.get_document_count() == 364
 
 
@@ -166,10 +188,16 @@ def test_delete_documents():
     assert document_store.get_document_count() == 0
 
 
+def test_delete_documents_headers_throws():
+    with pytest.raises(NotImplementedError):
+        document_store.delete_documents(headers={"key": "value"})
+
+
 def test_delete_index():
     document_store.delete_index()
     client = pymongo.MongoClient(mongo_atlas_connection_string)
     database = client[mongo_atlas_database]
+    print(database.list_collection_names())
     assert "test_80_days" not in database.list_collection_names()
 
 
