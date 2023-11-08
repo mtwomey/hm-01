@@ -132,7 +132,10 @@ class MongoDocumentStore(BaseDocumentStore):
 
     def delete_index(self, index=None):
         """
+        [Done]
         [Demanded by base class]
+        Deletes the collection named by index or the collection speicifed when the
+        driver was initialized.
         """
         self._get_collection(index).drop()
 
