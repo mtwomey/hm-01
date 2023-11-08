@@ -80,6 +80,11 @@ class MongoDocumentStore(BaseDocumentStore):
         return {self.embedding_field: "embedding"}
 
     def _get_collection(self, index=None) -> Collection:
+        """
+        [Done]
+        Returns the collection named by index or returns the collection speicifed when the
+        driver was initialized.
+        """
         _validate_index_name(index)
         if index is not None:
             return self.database[index]

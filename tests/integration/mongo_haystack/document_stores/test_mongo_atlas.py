@@ -141,6 +141,18 @@ def test__create_document_field_map_b():
     assert document_store._create_document_field_map() == {"emb": "embedding"}
 
 
+def test__get_collection_no_index():
+    collection = document_store._get_collection()
+    assert collection.name == "test_80_days"
+
+def test__get_collection_with_index():
+    collection = document_store._get_collection(index="index_abcdefg")
+    assert collection.name == "index_abcdefg"
+
+def test__get_collection_invalid_index():
+    with pytest.raises(ValueError):
+      collection = document_store._get_collection(index="index_a!!bcdefg")
+
 # Get the book "Around the World in 80 Days" from Project Gutenberg
 def get_book():
     response = requests.get("https://www.gutenberg.org/ebooks/103.txt.utf-8")
