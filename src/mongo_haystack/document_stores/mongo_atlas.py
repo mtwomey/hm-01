@@ -141,9 +141,10 @@ class MongoDocumentStore(BaseDocumentStore):
 
     def delete_labels():
         """
+        [Done]
         [Demanded by base class]
         """
-        pass
+        raise NotImplementedError("MongoDocumentStore does not support labels (yet).")
 
     def get_all_documents(
         self,
