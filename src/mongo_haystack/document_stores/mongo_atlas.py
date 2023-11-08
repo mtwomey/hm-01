@@ -252,28 +252,36 @@ class MongoDocumentStore(BaseDocumentStore):
 
     def get_all_documents_generator(
         self,
-        index: Optional[FilterType] = None,
+        index: Optional[str] = None,
         filters: Optional[FilterType] = None,
         return_embedding: Optional[bool] = False,
         batch_size: int = DEFAULT_BATCH_SIZE,
         headers: Optional[Dict[str, str]] = None,
     ) -> Generator[Document, None, None]:
         """
+        [Done]
         [BaseDocumentStore]
         [Demanded by base class]
+        Retrieves all documents in the index (collection). Under-the-hood, documents are fetched in batches from the
+        document store and yielded as individual documents. This method can be used to iteratively process
+        a large number of documents without having to load all documents in memory.
+
+        :param index: Optional collection name. By default self.index will be used.
+        :param filters: optional filters (see get_all_documents for description).
+        :param return_embedding: Optional flag to return the embedding of the document.
+        :param batch_size: Number of documents to process at a time. When working with large number of documents,
+                           batching can help reduce memory footprint.
+        :param headers: MongoDocumentStore does not support headers.
         """
         if headers:
             raise NotImplementedError("MongoDocumentStore does not support headers.")
 
         mongo_filters = mongo_filter_converter(filters)
 
-        projection = {}
-
         if return_embedding is None:
             return_embedding = self.return_embedding
 
-        if not return_embedding:
-            projection = {"embedding": False}
+        projection = {"embedding": False} if not return_embedding else {}
 
         collection = self._get_collection(index)
         documents = collection.find(mongo_filters, batch_size=batch_size, projection=projection)
