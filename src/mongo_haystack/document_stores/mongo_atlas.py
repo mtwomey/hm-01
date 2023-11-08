@@ -295,18 +295,44 @@ class MongoDocumentStore(BaseDocumentStore):
         batch_size: int = DEFAULT_BATCH_SIZE,
         headers: Optional[Dict[str, str]] = None,
         return_embedding: Optional[bool] = None,
-        namespace: Optional[str] = None,
     ) -> List[Document]:
         """
+        [Done]
         [Demanded by base class]
-        """
-        pass
+        Retrieves all documents matching ids.
 
-    def get_document_by_id():
+        :param ids: List of IDs to retrieve.
+        :param index: Optional index name to retrieve all documents from.
+        :param batch_size: Number of documents to retrieve at a time. When working with large number of documents,
+            batching can help reduce memory footprint.
+        :param headers: MongoDocumentStore does not support headers.
+        :param return_embedding: Optional flag to return the embedding of the document.
+        """
+        mongo_filter = {"id": {"$in": ids}}
+        result = self.get_all_documents_generator(
+            index=index, filters=mongo_filter, return_embedding=return_embedding, batch_size=batch_size, headers=headers
+        )
+
+        return list(result)
+
+    def get_document_by_id(
+        self,
+        id: str,
+        index: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+        return_embedding: Optional[bool] = None,
+    ) -> Document:
         """
         [Demanded by base class]
+        Retrieves the document matching id.
+
+        :param id: The ID of the document to retrieve
+        :param index: Optional index name to retrieve all documents from.
+        :param headers: MongoDocumentStore does not support headers.
+        :param return_embedding: Optional flag to return the embedding of the document.
         """
-        pass
+        documents = self.get_documents_by_id(ids=[id], index=index, headers=headers, return_embedding=return_embedding)
+        return documents[0]
 
     def get_label_count():
         """
