@@ -205,9 +205,10 @@ class MongoDocumentStore(BaseDocumentStore):
 
     def get_all_labels():
         """
+        [Done]
         [Demanded by base class]
         """
-        pass
+        raise NotImplementedError("MongoDocumentStore does not support labels (yet).")
 
     def get_document_count(
         self,
