@@ -130,6 +130,18 @@ def test_get_all_documents_filtered():
     assert document_store.get_document_count(filters={"Chapter": 1, "_split_id": 0}) == 1
 
 
+# This test will not work until we can create the search index prgramatically
+# def test_query_by_embedding():
+#     retriever = EmbeddingRetriever(
+#         document_store=document_store,
+#         embedding_model="sentence-transformers/all-mpnet-base-v2",  # Recommended here: https://www.sbert.net/docs/pretrained_models.html
+#         model_format="sentence_transformers",
+#         top_k=10,
+#     )
+#     embedding = retriever.embed_queries(["How much money was stolen from the bank?"])[0]
+#     assert len(document_store.query_by_embedding(query_emb=embedding)) == 10
+
+
 def test_delete_documents_filtered():
     document_store.delete_documents(filters={"Chapter": 1, "_split_id": 0})
     assert document_store.get_document_count() == 372
