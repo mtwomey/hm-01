@@ -4,6 +4,7 @@ import requests
 import pytest
 import roman
 import numpy
+import pymongo
 from mongo_haystack.document_stores.filters import _target_filter_to_metadata, _and_or_to_list, mongo_filter_converter
 from mongo_haystack.document_stores.mongo_atlas import MongoDocumentStore
 from haystack.schema import Document
@@ -143,6 +144,25 @@ def test_delete_documents_by_id_filtered():
 def test_delete_documents():
     document_store.delete_documents()
     assert document_store.get_document_count() == 0
+
+
+def test_delete_index():
+    document_store.delete_index()
+    client = pymongo.MongoClient(mongo_atlas_connection_string)
+    database = client[mongo_atlas_database]
+    assert "test_80_days" not in database.list_collection_names()
+
+
+def test_delete_index_with_index():
+    client = pymongo.MongoClient(mongo_atlas_connection_string)
+    database = client[mongo_atlas_database]
+    try:
+        database.create_collection("deleteme")
+    except Exception:
+        pass
+    assert "deleteme" in database.list_collection_names()
+    document_store.delete_index(index="deleteme")
+    assert "deleteme" not in database.list_collection_names()
 
 
 def test__create_document_field_map_a():
