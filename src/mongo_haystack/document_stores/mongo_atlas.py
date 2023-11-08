@@ -155,8 +155,42 @@ class MongoDocumentStore(BaseDocumentStore):
         headers: Optional[Dict[str, str]] = None,
     ):
         """
+        [Done]
         [BaseDocumentStore]
         [Demanded by base class]
+        Retrieves all documents in the index (collection).
+
+        :param index: Optional collection name. By default self.index will be used.
+        :param filters: Optional filters to narrow down the documents that will be retrieved.
+            Filters are defined as nested dictionaries. The keys of the dictionaries can be a logical
+            operator (`"$and"`, `"$or"`, `"$not"`), a comparison operator (`"$eq"`, `"$in"`, `"$gt"`,
+            `"$gte"`, `"$lt"`, `"$lte"`) or a metadata field name.
+            Logical operator keys take a dictionary of metadata field names and/or logical operators as
+            value. Metadata field names take a dictionary of comparison operators as value. Comparison
+            operator keys take a single value or (in case of `"$in"`) a list of values as value.
+            If no logical operator is provided, `"$and"` is used as default operation. If no comparison
+            operator is provided, `"$eq"` (or `"$in"` if the comparison value is a list) is used as default
+            operation.
+                __Example__:
+
+                ```python
+                filters = {
+                    "$and": {
+                        "type": {"$eq": "article"},
+                        "date": {"$gte": "2015-01-01", "$lt": "2021-01-01"},
+                        "rating": {"$gte": 3},
+                        "$or": {
+                            "genre": {"$in": ["economy", "politics"]},
+                            "publisher": {"$eq": "nytimes"}
+                        }
+                    }
+                }
+                ```
+            Note that filters will be acting on the contents of the meta field of the documents in the collection.
+        :param return_embedding: Optional flag to return the embedding of the document.
+        :param batch_size: Number of documents to process at a time. When working with large number of documents,
+                           batching can help reduce memory footprint.
+        :param headers: MongoDocumentStore does not support headers.
         """
         if headers:
             raise NotImplementedError("MongoDocumentStore does not support headers.")
