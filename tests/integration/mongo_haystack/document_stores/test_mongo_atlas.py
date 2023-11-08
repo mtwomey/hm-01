@@ -84,6 +84,10 @@ def test_get_document_count_without_embeddings_a():
     assert document_store.get_document_count(only_documents_without_embedding=True) == 373
 
 
+def test_get_embedding_count_a():
+    assert document_store.get_embedding_count() == 0
+
+
 def test_get_document_count_without_embeddings_with_filter():
     assert document_store.get_document_count(filters={"Chapter": 1}, only_documents_without_embedding=True) == 8
 
@@ -98,6 +102,10 @@ def test_update_embeddings():
 
     document_store.update_embeddings(retriever, batch_size=30)
     assert isinstance(document_store.get_all_documents(return_embedding=True)[0].embedding, numpy.ndarray)
+
+
+def test_get_embedding_count_b():
+    assert document_store.get_embedding_count() == 373
 
 
 def test_get_all_documents_without_embedings():
