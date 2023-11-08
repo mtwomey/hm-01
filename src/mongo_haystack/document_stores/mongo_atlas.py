@@ -242,11 +242,13 @@ class MongoDocumentStore(BaseDocumentStore):
 
     def get_embedding_count(self, filters: Optional[FilterType] = None, index: Optional[str] = None) -> int:
         """
+        [Done]
         [P / Q / W Have this]
 
         Return the number of documents with embeddings.
         """
-        return self.collection.count_documents({"embedding": {"$ne": None}})
+        collection = self._get_collection(index)
+        return collection.count_documents({"embedding": {"$ne": None}})
 
     def get_all_documents_generator(
         self,
