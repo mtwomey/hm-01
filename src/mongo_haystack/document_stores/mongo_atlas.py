@@ -70,7 +70,7 @@ class MongoDocumentStore(BaseDocumentStore):
 
         # Implicitly create the collection if it doesn't exist
         if collection_name not in self.database.list_collection_names():
-            self.database.create_collection(collection_name)
+            self.database.create_collection(self.collection_name)
 
     def _create_document_field_map(self) -> Dict:
         """
