@@ -74,8 +74,8 @@ class MongoDocumentStore(BaseDocumentStore):
 
     def _create_document_field_map(self) -> Dict:
         """
-        [Demanded by base class]
         [Done]
+        [Demanded by base class]
         """
         return {self.embedding_field: "embedding"}
 
@@ -218,12 +218,12 @@ class MongoDocumentStore(BaseDocumentStore):
         headers: Optional[Dict[str, str]] = None,
     ) -> int:
         """
-        [Demanded by base class]
         [Done]
+        [Demanded by base class]
 
         Return the number of documents.
 
-        :param filters: Optional filters (see get_all_documents).
+        :param filters: Optional filters (see get_all_documents for description).
         :param index: Collection to use.
         :param only_documents_without_embedding: If set to `True`, only documents without embeddings are counted.
         :param headers: MongoDocumentStore does not support headers.
@@ -363,7 +363,6 @@ class MongoDocumentStore(BaseDocumentStore):
         collection = self._get_collection(index)
 
         query_emb = query_emb.astype(np.float32)
-        # print(query_emb)
 
         if self.similarity == "cosine":
             self.normalize_embedding(query_emb)
