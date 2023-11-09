@@ -336,9 +336,10 @@ class MongoDocumentStore(BaseDocumentStore):
 
     def get_label_count():
         """
+        [Done]
         [Demanded by base class]
         """
-        pass
+        raise NotImplementedError("MongoDocumentStore does not support labels (yet).")
 
     def query_by_embedding(
         self,
