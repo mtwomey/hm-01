@@ -108,6 +108,9 @@ def test_get_embedding_count_b():
     assert document_store.get_embedding_count() == 373
 
 
+# Getting documents
+
+
 def test_get_all_documents_without_embedings():
     assert document_store.get_all_documents()[0].embedding is None
     assert document_store.get_all_documents(return_embedding=False)[0].embedding is None
@@ -121,27 +124,22 @@ def test_get_all_documents():
     assert len(document_store.get_all_documents()) == 373
 
 
-def test_get_document_by_id():
+def test_get_all_documents_filtered():
+    assert len(document_store.get_all_documents(filters={"Chapter": 1})) == 8
+
+
+def test_get_document_by_id_a():
     documents = document_store.get_all_documents(filters={"Chapter": 1, "_split_id": 0})
     assert len(documents) == 1
     document_id = documents[0].id
     assert isinstance(document_store.get_document_by_id(id=document_id), Document)
 
 
-def test_get_documents_by_id():
+def test_get_documents_by_id_b():
     documents = document_store.get_all_documents(filters={"Chapter": 1})
     document_ids = [document.id for document in documents]
     assert len(document_ids) > 1
     assert len(document_store.get_documents_by_id(ids=document_ids)) == len(document_ids)
-
-
-def test_get_document_count_without_embeddings_b():
-    assert document_store.get_document_count(only_documents_without_embedding=True) == 0
-
-
-def test_get_all_documents_filtered():
-    assert document_store.get_document_count(filters={"Chapter": 1}) == 8
-    assert document_store.get_document_count(filters={"Chapter": 1, "_split_id": 0}) == 1
 
 
 def test_get_all_documents_headers_throws():
@@ -149,16 +147,30 @@ def test_get_all_documents_headers_throws():
         document_store.get_all_documents(headers={"key": "value"})
 
 
-# This test will not work until we can create the search index prgramatically
-# def test_query_by_embedding():
-#     retriever = EmbeddingRetriever(
-#         document_store=document_store,
-#         embedding_model="sentence-transformers/all-mpnet-base-v2",  # Recommended here: https://www.sbert.net/docs/pretrained_models.html
-#         model_format="sentence_transformers",
-#         top_k=10,
-#     )
-#     embedding = retriever.embed_queries(["How much money was stolen from the bank?"])[0]
-#     assert len(document_store.query_by_embedding(query_emb=embedding)) == 10
+def test_get_document_count():
+    assert document_store.get_document_count() == 373
+
+
+def test_get_document_count_without_embeddings_b():
+    assert document_store.get_document_count(only_documents_without_embedding=True) == 0
+
+
+def test_get_document_count_filtered():
+    assert document_store.get_document_count(filters={"Chapter": 1}) == 8
+    assert document_store.get_document_count(filters={"Chapter": 1, "_split_id": 0}) == 1
+
+
+# Updating document meta
+
+
+def test_update_document_meta():
+    document = document_store.get_all_documents(filters={"Chapter": 1, "_split_id": 0})[0]
+    new_meta = document.meta
+    new_meta["new_field"] = "New metadata"
+    document_store.update_document_meta(id=document.id, meta=new_meta)
+    updated_document = document_store.get_all_documents(filters={"Chapter": 1, "_split_id": 0})[0]
+    assert "new_field" in updated_document.meta
+    assert updated_document.meta["new_field"] == "New metadata"
 
 
 # Deleting documents

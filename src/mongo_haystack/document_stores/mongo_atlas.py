@@ -323,6 +323,7 @@ class MongoDocumentStore(BaseDocumentStore):
         return_embedding: Optional[bool] = None,
     ) -> Document:
         """
+        [Done]
         [Demanded by base class]
         Retrieves the document matching id.
 
@@ -407,11 +408,18 @@ class MongoDocumentStore(BaseDocumentStore):
         documents = [mongo_doc_to_hystack_doc(document) for document in results]
         return documents
 
-    def update_document_meta():
+    def update_document_meta(self, id: str, meta: Dict[str, str], index: Optional[str] = None):
         """
+        [Done]
         [Demanded by base class]
+        Update the metadata dictionary of a document by specifying its string ID.
+
+        :param id: ID of the Document to update.
+        :param meta: Dictionary of new metadata.
+        :param index: Optional index name to update documents from.
         """
-        pass
+        collection = self._get_collection(index)
+        collection.update_one({"id": id}, {"$set": {"meta": meta}})
 
     def write_documents(
         self,
