@@ -346,14 +346,25 @@ class MongoDocumentStore(BaseDocumentStore):
         filters: Optional[FilterType] = None,
         top_k: int = 10,
         index: Optional[str] = None,
-        return_embedding: Optional[bool] = True,
+        return_embedding: Optional[bool] = None,
         headers: Optional[Dict[str, str]] = None,
         scale_score: bool = True,
     ) -> List[Document]:
         """
+        [Done]
         [Demanded by base class]
-        """
+        Find the document that is most similar to the provided `query_emb` by using a vector similarity metric.
 
+        :param query_emb: Embedding of the query
+        :param filters: optional filters (see get_all_documents for description).
+        :param top_k: How many documents to return.
+        :param index: The name of the index from which to retrieve documents.
+        :param return_embedding: Whether to return document embedding.
+        :param headers: MongoDocumentStore does not support headers.
+        :param scale_score: Whether to scale the similarity score to the unit interval (range of [0,1]).
+                            If true (default) similarity scores (e.g. cosine or dot_product) which naturally have a different value range will be scaled to a range of [0,1], where 1 means extremely relevant.
+                            Otherwise raw similarity scores (e.g. cosine or dot_product) will be used.
+        """
         if headers:
             raise NotImplementedError("MongoDocumentStore does not support headers.")
 
@@ -369,29 +380,30 @@ class MongoDocumentStore(BaseDocumentStore):
 
         filters = filters or {}
 
-        results = collection.aggregate(
-            [
-                {
-                    "$search": {
-                        "index": self.collection_name,
-                        "knnBeta": {
-                            "vector": query_emb.tolist(),
-                            "path": "embedding",
-                            "k": top_k,
-                        },
-                    }
-                },
-                {"$set": {"score": {"$meta": "searchScore"}}},
-            ]
-        )
+        pipeline = [
+            {
+                "$search": {
+                    "index": self.collection_name,
+                    "knnBeta": {
+                        "vector": query_emb.tolist(),
+                        "path": "embedding",
+                        "k": top_k,
+                    },
+                }
+            }
+        ]
+        if filters is not None:
+            pipeline.append({"$match": mongo_filter_converter(filters)})
+        if not return_embedding:
+            pipeline.append({"$project": {"embedding": False}})
+        pipeline.append({"$set": {"score": {"$meta": "searchScore"}}})
+        results = list(collection.aggregate(pipeline))
 
-        documents = []
-        for result in results:
-            document = Document(id=result["id"], content=result["content"], score=result["score"], meta=result["meta"])
-            if return_embedding:
-                document.embedding = np.asarray(result["embedding"], dtype=np.float32)
-            documents.append(document)
+        if scale_score:
+            for document in results:
+                document["score"] = self.scale_to_unit_interval(document["score"], self.similarity)
 
+        documents = [mongo_doc_to_hystack_doc(document) for document in results]
         return documents
 
     def update_document_meta():
