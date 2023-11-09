@@ -8,12 +8,18 @@ def mongo_doc_to_hystack_doc(mongo_doc) -> Document:
     else:
         embedding = None
 
+    if "score" in mongo_doc:
+        score = mongo_doc["score"]
+    else:
+        score = None
+
     return Document(
         id=mongo_doc["id"],
         content=mongo_doc["content"],
         content_type=mongo_doc["content_type"],
         meta=mongo_doc["meta"],
         embedding=embedding,
+        score=score,
     )
 
 
