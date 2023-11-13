@@ -1,7 +1,7 @@
 from typing import Union, Any, Mapping
 
 FILTER_OPERATORS = ["$and", "$or", "$not", "$eq", "$in", "$gt", "$gte", "$lt", "$lte"]
-EXCLUDE_FROM_METADATA_PREPEND = ["id"]
+EXCLUDE_FROM_METADATA_PREPEND = ["id", "embedding"]
 
 METADATA_FIELD_NAME = "meta"
 
