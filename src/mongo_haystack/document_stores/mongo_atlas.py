@@ -19,7 +19,7 @@ DEFAULT_BATCH_SIZE = 50
 FilterType = Dict[str, Union[Dict[str, Any], List[Any], str, int, float, bool]]
 
 
-class MongoDocumentStore(BaseDocumentStore):
+class MongoAtlasDocumentStore(BaseDocumentStore):
     def __init__(
         self,
         mongo_connection_string: Optional[str] = None,

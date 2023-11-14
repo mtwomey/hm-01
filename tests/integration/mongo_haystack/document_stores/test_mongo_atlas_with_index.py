@@ -6,7 +6,7 @@ import roman
 import numpy
 import pymongo
 from mongo_haystack.document_stores.mongo_filters import _target_filter_to_metadata, _and_or_to_list, mongo_filter_converter
-from mongo_haystack.document_stores.mongo_atlas import MongoDocumentStore
+from mongo_haystack.document_stores.mongo_atlas import MongoAtlasDocumentStore
 from haystack.schema import Document
 from haystack.pipelines import Pipeline
 from haystack.pipelines import DocumentSearchPipeline
@@ -33,7 +33,7 @@ mongo_atlas_connection_string = (
     f"mongodb+srv://{mongo_atlas_username}:{mongo_atlas_password}@{mongo_atlas_host}/?{mongo_atlas_params_string}"
 )
 
-document_store = MongoDocumentStore(
+document_store = MongoAtlasDocumentStore(
     mongo_connection_string=mongo_atlas_connection_string,
     database_name=mongo_atlas_database,
     collection_name=mongo_atlas_collection,
