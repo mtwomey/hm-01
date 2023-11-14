@@ -20,14 +20,14 @@ poetry insall
 
 **Running all tests:**
 
-``` python
+``` shell
 poetry run pytest -v
 ```
 Note: See `Running integration tests` below regarding env variables.
 
 **Running unit tests:**
 
-``` python
+``` shell
 poetry run pytest -v -m unit
 ```
 
@@ -46,6 +46,14 @@ Running these tests will create (and remove) a small collection called `test_80_
 
 Run the tests:
 
-``` python
+``` shell
 poetry run pytest -v -m integration
+```
+
+**Tests the require the search index:** 
+
+These tests require the search index to be present. You can run these initially to create the collection, then create the search index in the Atlas console, then on a second run it will use the index. You may need to delete and recreate the index if the collection was deleted.
+
+``` shell
+poetry run pytest -v --cov=./src --cov-report=term-missing --override-ini "addopts=" -m search_index
 ```
