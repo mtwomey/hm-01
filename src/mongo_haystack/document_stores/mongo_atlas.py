@@ -10,8 +10,8 @@ from haystack.utils import get_batches_from_generator
 from pymongo import InsertOne, ReplaceOne, UpdateOne
 from pymongo.collection import Collection
 from tqdm import tqdm
-from .converters import mongo_doc_to_haystack_doc, haystack_doc_to_mongo_doc
-from .filters import mongo_filter_converter
+from .mongo_converters import mongo_doc_to_haystack_doc, haystack_doc_to_mongo_doc
+from .mongo_filters import mongo_filter_converter
 
 METRIC_TYPES = ["euclidean", "cosine", "dotProduct"]
 DEFAULT_BATCH_SIZE = 50

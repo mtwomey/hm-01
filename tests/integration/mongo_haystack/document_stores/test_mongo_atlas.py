@@ -6,7 +6,7 @@ import roman
 import numpy
 import pymongo
 from pymongo.errors import BulkWriteError
-from mongo_haystack.document_stores.filters import _target_filter_to_metadata, _and_or_to_list, mongo_filter_converter
+from mongo_haystack.document_stores.mongo_filters import _target_filter_to_metadata, _and_or_to_list, mongo_filter_converter
 from mongo_haystack.document_stores.mongo_atlas import MongoDocumentStore
 from haystack.schema import Document
 from haystack.pipelines import Pipeline
