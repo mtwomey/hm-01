@@ -1,4 +1,4 @@
-from typing import Union, Any, Mapping
+from typing import Union, Any, Dict
 
 FILTER_OPERATORS = ["$and", "$or", "$not", "$eq", "$in", "$gt", "$gte", "$lt", "$lte"]
 EXCLUDE_FROM_METADATA_PREPEND = ["id", "embedding"]
@@ -6,7 +6,7 @@ EXCLUDE_FROM_METADATA_PREPEND = ["id", "embedding"]
 METADATA_FIELD_NAME = "meta"
 
 
-def mongo_filter_converter(filter) -> Mapping[str, Any]:
+def mongo_filter_converter(filter) -> Dict[str, Any]:
     if not filter:
         return {}
     else:
@@ -15,7 +15,7 @@ def mongo_filter_converter(filter) -> Mapping[str, Any]:
         return filter
 
 
-def _target_filter_to_metadata(filter, metadata_field_name) -> Union[Mapping[str, Any], list]:
+def _target_filter_to_metadata(filter, metadata_field_name) -> Union[Dict[str, Any], list]:
     """
     Returns a new filter with any non-operator, non-excluded keys renamed so that the metadata
     field name is prepended. Does not mutate input filter.
@@ -55,7 +55,7 @@ def _target_filter_to_metadata(filter, metadata_field_name) -> Union[Mapping[str
     return filter
 
 
-def _and_or_to_list(filter) -> Union[Mapping[str, Any], list]:
+def _and_or_to_list(filter) -> Union[Dict[str, Any], list]:
     """
     Returns a new filter replacing any dict values assocaited with "$and" or "$or" keys
     with a list. Does not mutate input filter.
