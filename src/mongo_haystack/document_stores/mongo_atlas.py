@@ -1,32 +1,19 @@
 import re
-from itertools import islice
-from typing import Any, Dict, Generator, List, Optional, Set, Union
-
+from typing import Any, Dict, Generator, List, Optional, Union
 import numpy as np
 import pymongo
 from haystack.document_stores import BaseDocumentStore
 from haystack.errors import DocumentStoreError
 from haystack.nodes.retriever import DenseRetriever
-from haystack.schema import Answer, Document, FilterType, Label, Span
-from pymongo import ReplaceOne
+from haystack.schema import Document, FilterType
+from haystack.utils import get_batches_from_generator
+from pymongo import InsertOne, ReplaceOne, UpdateOne
 from pymongo.collection import Collection
-from pymongo.write_concern import WriteConcern
 from tqdm import tqdm
-from . import filters
-
-import json
-
-from mongo_haystack.document_stores.converters import (
-    haystack_doc_to_mongo_doc,
-    mongo_doc_to_hystack_doc,
-)
-from mongo_haystack.document_stores.filters import mongo_filter_converter
-from pprint import PrettyPrinter
-
-pp = PrettyPrinter(indent=4).pprint
+from .converters import mongo_doc_to_haystack_doc, haystack_doc_to_mongo_doc
+from .filters import mongo_filter_converter
 
 METRIC_TYPES = ["euclidean", "cosine", "dotProduct"]
-
 DEFAULT_BATCH_SIZE = 50
 
 FilterType = Dict[str, Union[Dict[str, Any], List[Any], str, int, float, bool]]
@@ -42,14 +29,10 @@ class MongoDocumentStore(BaseDocumentStore):
         return_embedding: bool = False,
         index: str = "document",
         similarity: str = "cosine",
-        replicas: int = 1,
-        shards: int = 1,
         embedding_field: str = "embedding",
         progress_bar: bool = True,
         duplicate_documents: str = "overwrite",
         recreate_index: bool = False,
-        metadata_config: Optional[Dict] = None,
-        validate_index_sync: bool = True,
     ):
         self.mongo_connection_string = _validate_mongo_connection_string(mongo_connection_string)
         self.database_name = _validate_database_name(database_name)
@@ -71,6 +54,7 @@ class MongoDocumentStore(BaseDocumentStore):
         # Implicitly create the collection if it doesn't exist
         if collection_name not in self.database.list_collection_names():
             self.database.create_collection(self.collection_name)
+            self._get_collection().create_index("id", unique=True)
 
     def _create_document_field_map(self) -> Dict:
         """
@@ -104,7 +88,7 @@ class MongoDocumentStore(BaseDocumentStore):
 
         Delete documents from the document store.
 
-        :param index: Collection to delete the documents from. If `None`, the DocumentStore's default collection will be used.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
         :param ids: Optional list of IDs to narrow down the documents to be deleted.
         :param filters: optional filters (see get_all_documents for description).
             If filters are provided along with a list of IDs, this method deletes the
@@ -139,7 +123,7 @@ class MongoDocumentStore(BaseDocumentStore):
         """
         self._get_collection(index).drop()
 
-    def delete_labels():
+    def delete_labels(self):
         """
         [Done]
         [Demanded by base class]
@@ -160,7 +144,7 @@ class MongoDocumentStore(BaseDocumentStore):
         [Demanded by base class]
         Retrieves all documents in the index (collection).
 
-        :param index: Optional collection name. By default self.index will be used.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
         :param filters: Optional filters to narrow down the documents that will be retrieved.
             Filters are defined as nested dictionaries. The keys of the dictionaries can be a logical
             operator (`"$and"`, `"$or"`, `"$not"`), a comparison operator (`"$eq"`, `"$in"`, `"$gt"`,
@@ -203,7 +187,7 @@ class MongoDocumentStore(BaseDocumentStore):
         )
         return list(result)
 
-    def get_all_labels():
+    def get_all_labels(self):
         """
         [Done]
         [Demanded by base class]
@@ -224,7 +208,7 @@ class MongoDocumentStore(BaseDocumentStore):
         Return the number of documents.
 
         :param filters: Optional filters (see get_all_documents for description).
-        :param index: Collection to use.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
         :param only_documents_without_embedding: If set to `True`, only documents without embeddings are counted.
         :param headers: MongoDocumentStore does not support headers.
         """
@@ -248,7 +232,12 @@ class MongoDocumentStore(BaseDocumentStore):
         Return the number of documents with embeddings.
         """
         collection = self._get_collection(index)
-        return collection.count_documents({"embedding": {"$ne": None}})
+
+        filters = filters or {}
+
+        mongo_filters = {"$and": [mongo_filter_converter(filters), {"embedding": {"$ne": None}}]}
+
+        return collection.count_documents(mongo_filters)
 
     def get_all_documents_generator(
         self,
@@ -266,7 +255,7 @@ class MongoDocumentStore(BaseDocumentStore):
         document store and yielded as individual documents. This method can be used to iteratively process
         a large number of documents without having to load all documents in memory.
 
-        :param index: Optional collection name. By default self.index will be used.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
         :param filters: optional filters (see get_all_documents for description).
         :param return_embedding: Optional flag to return the embedding of the document.
         :param batch_size: Number of documents to process at a time. When working with large number of documents,
@@ -285,8 +274,9 @@ class MongoDocumentStore(BaseDocumentStore):
 
         collection = self._get_collection(index)
         documents = collection.find(mongo_filters, batch_size=batch_size, projection=projection)
-        for document in documents:
-            yield mongo_doc_to_hystack_doc(document)
+
+        for doc in documents:
+            yield mongo_doc_to_haystack_doc(doc)
 
     def get_documents_by_id(
         self,
@@ -302,15 +292,20 @@ class MongoDocumentStore(BaseDocumentStore):
         Retrieves all documents matching ids.
 
         :param ids: List of IDs to retrieve.
-        :param index: Optional index name to retrieve all documents from.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
         :param batch_size: Number of documents to retrieve at a time. When working with large number of documents,
             batching can help reduce memory footprint.
         :param headers: MongoDocumentStore does not support headers.
         :param return_embedding: Optional flag to return the embedding of the document.
         """
-        mongo_filter = {"id": {"$in": ids}}
+        mongo_filters = {"id": {"$in": ids}}
+
         result = self.get_all_documents_generator(
-            index=index, filters=mongo_filter, return_embedding=return_embedding, batch_size=batch_size, headers=headers
+            index=index,
+            filters=mongo_filters,
+            return_embedding=return_embedding,
+            batch_size=batch_size,
+            headers=headers,
         )
 
         return list(result)
@@ -328,14 +323,14 @@ class MongoDocumentStore(BaseDocumentStore):
         Retrieves the document matching id.
 
         :param id: The ID of the document to retrieve
-        :param index: Optional index name to retrieve all documents from.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
         :param headers: MongoDocumentStore does not support headers.
         :param return_embedding: Optional flag to return the embedding of the document.
         """
         documents = self.get_documents_by_id(ids=[id], index=index, headers=headers, return_embedding=return_embedding)
         return documents[0]
 
-    def get_label_count():
+    def get_label_count(self):
         """
         [Done]
         [Demanded by base class]
@@ -360,7 +355,7 @@ class MongoDocumentStore(BaseDocumentStore):
         :param query_emb: Embedding of the query
         :param filters: optional filters (see get_all_documents for description).
         :param top_k: How many documents to return.
-        :param index: The name of the index from which to retrieve documents.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
         :param return_embedding: Whether to return document embedding.
         :param headers: MongoDocumentStore does not support headers.
         :param scale_score: Whether to scale the similarity score to the unit interval (range of [0,1]).
@@ -399,13 +394,13 @@ class MongoDocumentStore(BaseDocumentStore):
         if not return_embedding:
             pipeline.append({"$project": {"embedding": False}})
         pipeline.append({"$set": {"score": {"$meta": "searchScore"}}})
-        results = list(collection.aggregate(pipeline))
+        documents = list(collection.aggregate(pipeline))
 
         if scale_score:
-            for document in results:
-                document["score"] = self.scale_to_unit_interval(document["score"], self.similarity)
+            for doc in documents:
+                doc["score"] = self.scale_to_unit_interval(doc["score"], self.similarity)
 
-        documents = [mongo_doc_to_hystack_doc(document) for document in results]
+        documents = [mongo_doc_to_haystack_doc(doc) for doc in documents]
         return documents
 
     def update_document_meta(self, id: str, meta: Dict[str, str], index: Optional[str] = None):
@@ -416,7 +411,7 @@ class MongoDocumentStore(BaseDocumentStore):
 
         :param id: ID of the Document to update.
         :param meta: Dictionary of new metadata.
-        :param index: Optional index name to update documents from.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
         """
         collection = self._get_collection(index)
         collection.update_one({"id": id}, {"$set": {"meta": meta}})
@@ -428,9 +423,9 @@ class MongoDocumentStore(BaseDocumentStore):
         batch_size: int = DEFAULT_BATCH_SIZE,
         duplicate_documents: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
-        labels: Optional[bool] = False,
     ):
         """
+        [Done]
         [BaseDocumentStore]
         [Demanded by base class]
 
@@ -438,23 +433,56 @@ class MongoDocumentStore(BaseDocumentStore):
 
         documents: List of `Dicts` or `Documents`
         index (str): search index name - contain letters, numbers, hyphens, or underscores
+        :param duplicate_documents: handle duplicate documents based on parameter options.
+            Parameter options:
+                - `"overwrite"`: Update any existing documents with the same ID when adding documents.
+                - `"skip"`: Ignore the duplicate documents.
+                - `"fail"`: An error is raised if the document ID of the document being added already exists.
+
+                "overwrite" is the default behaviour.
         """
+        if headers:
+            raise NotImplementedError("MongoDocumentStore does not support headers.")
 
         collection = self._get_collection(index)
 
         duplicate_documents = duplicate_documents or self.duplicate_documents
 
         field_map = self._create_document_field_map()
-        document_objects = [Document.from_dict(d, field_map=field_map) if isinstance(d, dict) else d for d in documents]
+        documents = [
+            Document.from_dict(doc, field_map=field_map) if isinstance(doc, dict) else doc for doc in documents
+        ]
 
-        mongo_documents = list(map(Document.to_dict, document_objects))
-        collection.with_options(write_concern=WriteConcern(w=0)).insert_many(mongo_documents, ordered=False)
+        mongo_documents = list(map(Document.to_dict, documents))
 
-    def write_labels():
+        with tqdm(
+            total=len(mongo_documents),
+            disable=not self.progress_bar,
+            position=0,
+            unit=" docs",
+            desc="Writing Documents",
+        ) as progress_bar:
+            batches = get_batches_from_generator(mongo_documents, batch_size)
+            for batch in batches:
+                operations = [ReplaceOne({"id": doc["id"]}, upsert=True, replacement=doc) for doc in batch]
+
+                match duplicate_documents:
+                    case "skip":
+                        operations = [UpdateOne({"id": doc["id"]}, {"$setOnInsert": doc}, upsert=True) for doc in batch]
+                    case "fail":
+                        operations = [InsertOne(doc) for doc in batch]
+                    case _:
+                        operations = [ReplaceOne({"id": doc["id"]}, upsert=True, replacement=doc) for doc in batch]
+
+                collection.bulk_write(operations)
+                progress_bar.update(len(batch))
+
+    def write_labels(self):
         """
+        [Done]
         [Demanded by base class]
         """
-        pass
+        raise NotImplementedError("MongoDocumentStore does not support labels (yet).")
 
     def update_embeddings(
         self,
@@ -465,11 +493,29 @@ class MongoDocumentStore(BaseDocumentStore):
         batch_size: int = DEFAULT_BATCH_SIZE,
     ):
         """
+        [Done]
         [P / Q / W Have this]
+        Updates the embeddings in the document store using the encoding model specified in the retriever.
+
+        This can be useful if you want to add or change the embeddings for your documents (e.g. after changing the
+        retriever config).
+
+        :param retriever: Retriever to use to get embeddings for text.
+        :param index: Optional collection name. If `None`, the DocumentStore's default collection will be used.
+        :param update_existing_embeddings: Whether to update existing embeddings of the documents. If set to `False`,
+            only documents without embeddings are processed. This mode can be used for incremental updating of
+            embeddings, wherein, only newly indexed documents get processed.
+        :param filters: optional filters (see get_all_documents for description).
+        :param batch_size: Number of documents to process at a time. When working with large number of documents,
+            batching can help reduce memory footprint. "
         """
+        filters = filters or {}
         document_count = self.get_document_count(
             index=index, filters=filters, only_documents_without_embedding=not update_existing_embeddings
         )
+
+        if not update_existing_embeddings:
+            filters = {"$and": [filters, {"embedding": {"$eq": None}}]}
 
         documents = self.get_all_documents_generator(
             index=index, filters=filters, return_embedding=False, batch_size=batch_size
@@ -478,27 +524,28 @@ class MongoDocumentStore(BaseDocumentStore):
         collection = self._get_collection(index)
 
         with tqdm(
-            total=document_count, disable=not self.progress_bar, position=0, unit=" docs", desc="Updating Embedding"
+            total=document_count,
+            disable=not self.progress_bar,
+            unit=" docs",
+            desc="Updating Embeddings",
         ) as progress_bar:
-            for _ in range(0, document_count, batch_size):
-                document_batch = list(islice(documents, batch_size))
-                embeddings = retriever.embed_documents(document_batch)
+            batches = get_batches_from_generator(documents, batch_size)
+            for batch in batches:
+                embeddings = retriever.embed_documents(batch)
                 self._validate_embeddings_shape(
-                    embeddings=embeddings, num_documents=len(document_batch), embedding_dim=self.embedding_dim
+                    embeddings=embeddings, num_documents=len(batch), embedding_dim=self.embedding_dim
                 )
-
                 if self.similarity == "cosine":
                     self.normalize_embedding(embeddings)
 
-                mongo_docs_batch = list(map(lambda doc: haystack_doc_to_mongo_doc(doc), document_batch))
+                mongo_documents = [haystack_doc_to_mongo_doc(doc) for doc in batch]
 
-                for doc, embedding in zip(mongo_docs_batch, embeddings.tolist()):
+                for doc, embedding in zip(mongo_documents, embeddings.tolist()):
                     doc["embedding"] = embedding
 
-                requests = list(map(lambda doc: (ReplaceOne({"id": doc["id"]}, doc)), mongo_docs_batch))
-
-                collection.bulk_write(requests)
-                progress_bar.update(len(document_batch))
+                updates = [ReplaceOne({"id": doc["id"]}, doc) for doc in mongo_documents]
+                collection.bulk_write(updates)
+                progress_bar.update(len(batch))
 
 
 class MongoDocumentStoreError(DocumentStoreError):
