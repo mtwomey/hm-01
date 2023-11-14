@@ -5,6 +5,7 @@ import pytest
 import roman
 import numpy
 import pymongo
+from pymongo.errors import BulkWriteError
 from mongo_haystack.document_stores.filters import _target_filter_to_metadata, _and_or_to_list, mongo_filter_converter
 from mongo_haystack.document_stores.mongo_atlas import MongoDocumentStore
 from haystack.schema import Document
@@ -40,19 +41,46 @@ document_store = MongoDocumentStore(
     embedding_dim=768,
 )
 
+# Test data
 
-def test_write_documents():
+# Get the book "Around the World in 80 Days" from Project Gutenberg
+def get_book():
+    response = requests.get("https://www.gutenberg.org/ebooks/103.txt.utf-8")
+    if response.status_code != 200:
+        raise requests.HTTPError(f"HTTP error {response.status_code}")
+    else:
+        return response.text
+
+
+# Divide the book into chapters
+def divide_book_into_chapters(book) -> dict:
+    lines = book.split("\n")
+    current_chapter = None
+    chapters = {}
+    for line in lines:
+        chapter_match = re.match(r"CHAPTER\s+([IVXLCDM]+)\.*", line)
+        if chapter_match:
+            chapter_roman = chapter_match.group(1)
+            chapter_decimal = roman.fromRoman(chapter_roman)
+            current_chapter = f"CHAPTER {chapter_decimal}".title()
+            chapters[current_chapter] = ""
+        if current_chapter:
+            chapters[current_chapter] += line + "\n"
+    return chapters
+
+
+book = get_book()
+chapters = divide_book_into_chapters(book)
+documents = [
+    Document(
+        content=chapters[f"Chapter {n}"],
+        meta={"book": "Around the World in 80 Days", "Chapter": n},
+    )
+    for n in range(1, len(chapters) + 1)
+]
+
+def test_write_documents_skip():
     document_store.delete_documents()
-
-    book = get_book()
-    chapters = divide_book_into_chapters(book)
-    documents = [
-        Document(
-            content=chapters[f"Chapter {n}"],
-            meta={"book": "Around the World in 80 Days", "Chapter": n},
-        )
-        for n in range(1, len(chapters) + 1)
-    ]
 
     processor = PreProcessor(
         clean_empty_lines=True,
@@ -66,11 +94,83 @@ def test_write_documents():
         max_chars_check=10_000,
     )
 
-    retriever = EmbeddingRetriever(
-        document_store=document_store,
-        embedding_model="sentence-transformers/all-mpnet-base-v2",  # Recommended here: https://www.sbert.net/docs/pretrained_models.html
-        model_format="sentence_transformers",
-        top_k=10,
+    processed_documents = processor.process([documents[0]])
+    document_store.write_documents(processed_documents)
+
+
+    collection = document_store._get_collection()
+
+    filters = {"Chapter": 1, "_split_id": 0}
+    collection.update_one(mongo_filter_converter(filters), {"$set": {"content": "No Content"}})
+    document_store.write_documents(processed_documents, duplicate_documents="skip")
+    assert document_store.get_all_documents(filters=filters)[0].content == "No Content"
+
+
+def test_write_documents_overwrite():
+    document_store.delete_documents()
+
+    processor = PreProcessor(
+        clean_empty_lines=True,
+        clean_whitespace=True,
+        clean_header_footer=True,
+        remove_substrings=None,
+        split_by="word",
+        split_length=200,
+        split_respect_sentence_boundary=True,
+        split_overlap=0,
+        max_chars_check=10_000,
+    )
+
+    processed_documents = processor.process([documents[0]])
+    document_store.write_documents(processed_documents)
+
+
+    collection = document_store._get_collection()
+
+    filters = {"Chapter": 1, "_split_id": 0}
+    collection.update_one(mongo_filter_converter(filters), {"$set": {"content": "No Content"}})
+    document_store.write_documents(processed_documents, duplicate_documents="overwrite")
+    assert document_store.get_all_documents(filters=filters)[0].content != "No Content"
+
+def test_write_documents_fail():
+    document_store.delete_documents()
+
+    processor = PreProcessor(
+        clean_empty_lines=True,
+        clean_whitespace=True,
+        clean_header_footer=True,
+        remove_substrings=None,
+        split_by="word",
+        split_length=200,
+        split_respect_sentence_boundary=True,
+        split_overlap=0,
+        max_chars_check=10_000,
+    )
+
+    processed_documents = processor.process([documents[0]])
+    document_store.write_documents(processed_documents)
+
+
+    collection = document_store._get_collection()
+
+    filters = {"Chapter": 1, "_split_id": 0}
+    document_store.write_documents(processed_documents)
+    with pytest.raises(BulkWriteError):
+        document_store.write_documents(processed_documents, duplicate_documents="fail")
+
+def test_write_documents():
+    document_store.delete_documents()
+
+    processor = PreProcessor(
+        clean_empty_lines=True,
+        clean_whitespace=True,
+        clean_header_footer=True,
+        remove_substrings=None,
+        split_by="word",
+        split_length=200,
+        split_respect_sentence_boundary=True,
+        split_overlap=0,
+        max_chars_check=10_000,
     )
 
     processed_documents = processor.process(documents)
@@ -92,6 +192,21 @@ def test_get_document_count_without_embeddings_with_filter():
     assert document_store.get_document_count(filters={"Chapter": 1}, only_documents_without_embedding=True) == 8
 
 
+def test_update_embeddings_filtered():
+    retriever = EmbeddingRetriever(
+        document_store=document_store,
+        embedding_model="sentence-transformers/all-mpnet-base-v2",  # Recommended here: https://www.sbert.net/docs/pretrained_models.html
+        model_format="sentence_transformers",
+        top_k=10,
+    )
+    filters = {"Chapter": 1, "_split_id": 0}
+    document_store.update_embeddings(retriever, batch_size=30, filters=filters)
+    assert isinstance(
+        document_store.get_all_documents(return_embedding=True, filters=filters)[0].embedding,
+        numpy.ndarray,
+    )
+
+
 def test_update_embeddings():
     retriever = EmbeddingRetriever(
         document_store=document_store,
@@ -102,6 +217,25 @@ def test_update_embeddings():
 
     document_store.update_embeddings(retriever, batch_size=30)
     assert isinstance(document_store.get_all_documents(return_embedding=True)[0].embedding, numpy.ndarray)
+
+
+def test_update_embeddings_not_existing():
+    retriever = EmbeddingRetriever(
+        document_store=document_store,
+        embedding_model="sentence-transformers/all-mpnet-base-v2",  # Recommended here: https://www.sbert.net/docs/pretrained_models.html
+        model_format="sentence_transformers",
+        top_k=10,
+    )
+    filters = {"Chapter": 1, "_split_id": 0}
+    filters2 = {"Chapter": 1, "_split_id": 1}
+    collection = document_store._get_collection()
+
+    collection.update_one(mongo_filter_converter(filters), {"$set": {"embedding": None}})
+    collection.update_one(mongo_filter_converter(filters2), {"$set": {"embedding": "not_an_embedding"}})
+
+    document_store.update_embeddings(retriever, batch_size=30, update_existing_embeddings=False)
+    assert isinstance(collection.find_one(mongo_filter_converter(filters))["embedding"], list)
+    assert collection.find_one(mongo_filter_converter(filters2))["embedding"] == "not_an_embedding"
 
 
 def test_get_embedding_count_b():
@@ -209,7 +343,6 @@ def test_delete_index():
     document_store.delete_index()
     client = pymongo.MongoClient(mongo_atlas_connection_string)
     database = client[mongo_atlas_database]
-    print(database.list_collection_names())
     assert "test_80_days" not in database.list_collection_names()
 
 
@@ -254,28 +387,3 @@ def test__get_collection_invalid_index():
     with pytest.raises(ValueError):
         collection = document_store._get_collection(index="index_a!!bcdefg")
 
-
-# Get the book "Around the World in 80 Days" from Project Gutenberg
-def get_book():
-    response = requests.get("https://www.gutenberg.org/ebooks/103.txt.utf-8")
-    if response.status_code != 200:
-        raise requests.HTTPError(f"HTTP error {response.status_code}")
-    else:
-        return response.text
-
-
-# Divide the book into chapters
-def divide_book_into_chapters(book) -> dict:
-    lines = book.split("\n")
-    current_chapter = None
-    chapters = {}
-    for line in lines:
-        chapter_match = re.match(r"CHAPTER\s+([IVXLCDM]+)\.*", line)
-        if chapter_match:
-            chapter_roman = chapter_match.group(1)
-            chapter_decimal = roman.fromRoman(chapter_roman)
-            current_chapter = f"CHAPTER {chapter_decimal}".title()
-            chapters[current_chapter] = ""
-        if current_chapter:
-            chapters[current_chapter] += line + "\n"
-    return chapters
