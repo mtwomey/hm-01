@@ -2,7 +2,7 @@ from haystack.schema import Document
 from typing import Dict
 
 
-def mongo_doc_to_hystack_doc(mongo_doc) -> Document:
+def mongo_doc_to_haystack_doc(mongo_doc) -> Document:
     if "embedding" in mongo_doc:
         embedding = mongo_doc["embedding"]
     else:
