@@ -65,6 +65,7 @@ Example vector search index:
 ```
 
 During creation, select your collection. Note: The search index name __must__ match the collection name.
+Also note the document field name for embeddings is `embedding`.
 
 ### Writing Documents to MongoAtlasDocumentStore
 

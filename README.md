@@ -1,16 +1,23 @@
 # Local development
 
-Conda environment setup:
+The easiest way to get a proper environment setup locally is to use conda (miniconda or anaconda).
 
-``` python
-conda activate
-conda env remove -n mongo-ds-01
+## Conda environment setup:
+
+``` shell
 conda create -n mongo-ds-01 python=3.11 -y
 conda activate mongo-ds-01
-conda install pip -y
 ```
 
-Setup dependencies and install module locally:
+Note the python 3.11 version dependency.
+
+## Install Poetry
+
+``` shell
+pip install poetry
+```
+
+## Setup dependencies and install module locally:
 
 ``` python
 poetry insall
