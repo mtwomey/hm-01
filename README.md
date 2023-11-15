@@ -63,8 +63,11 @@ Alternatively you can run `pip install -r requirements.txt`, but using poetry is
 **Running all tests:**
 
 ``` shell
-poetry run pytest -v
+poetry run pytest -v --cov=./src --cov-report=term-missing
 ```
+
+This will run all tests that do not require the search index (see below for those tests)
+
 Note: See `Running integration tests` below regarding env variables.
 
 **Running unit tests:**

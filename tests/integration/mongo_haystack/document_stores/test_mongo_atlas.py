@@ -6,7 +6,11 @@ import roman
 import numpy
 import pymongo
 from pymongo.errors import BulkWriteError
-from mongo_haystack.document_stores.mongo_filters import _target_filter_to_metadata, _and_or_to_list, mongo_filter_converter
+from mongo_haystack.document_stores.mongo_filters import (
+    _target_filter_to_metadata,
+    _and_or_to_list,
+    mongo_filter_converter,
+)
 from mongo_haystack.document_stores.mongo_atlas import MongoAtlasDocumentStore
 from haystack.schema import Document
 from haystack.pipelines import Pipeline
@@ -43,13 +47,23 @@ document_store = MongoAtlasDocumentStore(
 
 # Test data
 
+
 # Get the book "Around the World in 80 Days" from Project Gutenberg
-def get_book():
+def get_book_online():
     response = requests.get("https://www.gutenberg.org/ebooks/103.txt.utf-8")
     if response.status_code != 200:
         raise requests.HTTPError(f"HTTP error {response.status_code}")
     else:
         return response.text
+
+
+def get_book_local():
+    with open("test-data/80_days.txt", "r", encoding="utf-8") as file:
+        text = file.read()
+    return text
+
+
+get_book = get_book_local
 
 
 # Divide the book into chapters
@@ -79,6 +93,7 @@ documents = [
     for n in range(1, len(chapters) + 1)
 ]
 
+
 def test_write_documents_skip():
     document_store.delete_documents()
 
@@ -96,7 +111,6 @@ def test_write_documents_skip():
 
     processed_documents = processor.process([documents[0]])
     document_store.write_documents(processed_documents)
-
 
     collection = document_store._get_collection()
 
@@ -124,13 +138,13 @@ def test_write_documents_overwrite():
     processed_documents = processor.process([documents[0]])
     document_store.write_documents(processed_documents)
 
-
     collection = document_store._get_collection()
 
     filters = {"Chapter": 1, "_split_id": 0}
     collection.update_one(mongo_filter_converter(filters), {"$set": {"content": "No Content"}})
     document_store.write_documents(processed_documents, duplicate_documents="overwrite")
     assert document_store.get_all_documents(filters=filters)[0].content != "No Content"
+
 
 def test_write_documents_fail():
     document_store.delete_documents()
@@ -150,13 +164,13 @@ def test_write_documents_fail():
     processed_documents = processor.process([documents[0]])
     document_store.write_documents(processed_documents)
 
-
     collection = document_store._get_collection()
 
     filters = {"Chapter": 1, "_split_id": 0}
     document_store.write_documents(processed_documents)
     with pytest.raises(BulkWriteError):
         document_store.write_documents(processed_documents, duplicate_documents="fail")
+
 
 def test_write_documents():
     document_store.delete_documents()
@@ -386,4 +400,3 @@ def test__get_collection_with_index():
 def test__get_collection_invalid_index():
     with pytest.raises(ValueError):
         collection = document_store._get_collection(index="index_a!!bcdefg")
-
