@@ -1,1 +1,1 @@
-from .document_stores.mongo_atlas import MongoDocumentStore
+from .document_stores.mongo_atlas import MongoAtlasDocumentStore

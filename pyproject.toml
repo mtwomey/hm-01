@@ -6,7 +6,7 @@ authors = ["mtwomey <mtwomey@beakstar.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "~3.11"
 pymongo = "^4.6.0"
 farm-haystack = "^1.21.2"
 
@@ -16,6 +16,7 @@ roman = "^4.1"
 black = "^23.10.1"
 datasets = "^2.14.6"
 farm-haystack = {extras = ["inference"], version = "^1.21.2"}
+pytest-cov = "^4.1.0"
 
 [build-system]
 requires = ["poetry-core"]
