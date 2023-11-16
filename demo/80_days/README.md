@@ -1,3 +1,4 @@
+This demo uses Haystack along with the Mongo Atlas document store to provide RAG style quering about the book Around the World in Eighty Days by Jules Verne. The setup script will split the book text, create embeddings, and store the resulting documents in Mongo Atlas. The demo script will provide the RAG style querying / questioning.
 
 # How to use the demo
 
@@ -46,3 +47,4 @@ Create a search index named `80_days` using the JSON editor in the Mongo Atlas w
 
 ## Run the demo
 
+Run the demo with `python demo.py`. You will be prompted to ask questions about the book. End the session with `quit` or `exit`.
