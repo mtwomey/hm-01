@@ -29,6 +29,10 @@ Example vector search index:
 
 During creation select your collection and ensure that the name of the search matches the collection name.
 
+## Note on filtering
+
+Filters used on the DocumentStore methods are generally targeted to the `meta` object of the documents in Mongo Atlas. For example a filter of `{"ref": "https://www.wikipedia.com"}` will return documnts where `meta.ref` matches that value. This allows filters to be portable between document stores.
+
 # Local development
 
 The easiest way to get a proper environment setup locally is to use conda (miniconda or anaconda).
@@ -102,7 +106,7 @@ These tests require the search index to be present.
 First run just the `test_write_documents` tests to create the collection and then go create the vector search index as described above. Name the index `test_80_days`.
 
 ``` shell
-poetry run pytest -v test_write_documents
+poetry run pytest -v -k test_write_documents
 ```
 
 Go create the vector search index, see `Creating a Mongo Atlas Vector Search Index` above.
