@@ -66,7 +66,7 @@ Alternatively you can run `pip install -r requirements.txt`, but using poetry is
 poetry run pytest -v --cov=./src --cov-report=term-missing
 ```
 
-This will run all tests that do not require the search index (see below for those tests)
+This will run all tests that do not require the search index (see below for those tests).
 
 Note: See `Running integration tests` below regarding env variables.
 
@@ -97,10 +97,20 @@ poetry run pytest -v -m integration
 
 **Tests that require the search index:** 
 
-These tests require the search index to be present. You can run these initially to create the collection, they will fail but the collection will be created. Then create the search index in the Atlas console and run the tests a second time. You may need to delete and recreate the index if the collection was deleted.
+These tests require the search index to be present.
+
+First run just the `test_write_documents` tests to create the collection and then go create the vector search index as described above. Name the index `test_80_days`.
+
+``` shell
+poetry run pytest -v test_write_documents
+```
+
+Go create the vector search index, see `Creating a Mongo Atlas Vector Search Index` above.
+
+Now you can run the the full test set.
 
 ``` shell
 poetry run pytest -v --cov=./src --cov-report=term-missing --override-ini "addopts=" -m search_index
 ```
 
-For these tests, you must create a search index in the Mongo Atlas console JSON editor. The index must be named `test_80_days` and be assocaited with the newly created `test_80_days` collection. See `Creating a Mongo Atlas Vector Search Index` above.
+Note that running the regualr tests above, will wipe out this index as deleteing the collection is part of the test set. In other world, follow these steps each time you want to run these tests.
