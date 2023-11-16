@@ -1,3 +1,4 @@
+import sys
 import os
 from haystack.nodes import AnswerParser, EmbeddingRetriever, PromptNode, PromptTemplate
 from haystack.pipelines import Pipeline
@@ -20,17 +21,28 @@ mongo_atlas_connection_string = (
     f"mongodb+srv://{mongo_atlas_username}:{mongo_atlas_password}@{mongo_atlas_host}/?{mongo_atlas_params_string}"
 )
 
+embedding_dim = 768
+embedding_model = "sentence-transformers/all-mpnet-base-v2"
+
+# Provide option for a different sentance transformer with 1024 dim embeddings
+if len(sys.argv) > 1:
+    match sys.argv[1]:
+        case "1024":
+            embedding_dim = 1024
+            embedding_model = "BAAI/bge-large-en-v1.5"
+            print(f"\nWill use {embedding_model} transformer with dim = {embedding_dim}.\n")
+
 document_store = MongoAtlasDocumentStore(
     mongo_connection_string=mongo_atlas_connection_string,
     database_name=mongo_atlas_database,
     collection_name=mongo_atlas_collection,
-    embedding_dim=768,
+    embedding_dim=embedding_dim,
     progress_bar=False,
 )
 
 retriever = EmbeddingRetriever(
     document_store=document_store,
-    embedding_model="sentence-transformers/all-mpnet-base-v2",  # Recommended here: https://www.sbert.net/docs/pretrained_models.html
+    embedding_model=embedding_model,
     model_format="sentence_transformers",
     top_k=10,
     progress_bar=False,
