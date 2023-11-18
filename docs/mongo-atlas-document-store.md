@@ -132,3 +132,7 @@ query_pipeline.add_node(component=prompt_node, name="PromptNode", inputs=["Retri
 
 query_pipeline.run(query = "What is Mongo Atlas", params={"Retriever" : {"top_k": 5}})
 ```
+
+### Note on filtering
+
+Filters used on the DocumentStore methods are generally targeted to the `meta` object of the documents in Mongo Atlas. For example a filter of `{"ref": "https://www.wikipedia.com"}` will return documnts where `meta.ref` matches that value. This allows filters to be portable between document stores.
